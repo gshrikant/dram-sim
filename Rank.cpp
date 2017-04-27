@@ -28,9 +28,6 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************************/
 
-
-
-
 #include "Rank.h"
 #include "MemoryController.h"
 
@@ -52,24 +49,24 @@ Rank::Rank(ostream &dramsim_log_) :
 	outgoingDataPacket = NULL;
 	dataCyclesLeft = 0;
 	currentClockCycle = 0;
-
-#ifndef NO_STORAGE
-#endif
-
 }
 
-// mutators
+/* Mutators */
 void Rank::setId(int id)
 {
 	this->id = id;
 }
 
-// attachMemoryController() must be called before any other Rank functions
-// are called
+/* 
+ * attachMemoryController() must be called before any other Rank functions
+ * are called.
+ */
 void Rank::attachMemoryController(MemoryController *memoryController)
 {
 	this->memoryController = memoryController;
 }
+
+/* Destructor */
 Rank::~Rank()
 {
 	for (size_t i=0; i<readReturnPacket.size(); i++)
@@ -79,13 +76,23 @@ Rank::~Rank()
 	readReturnPacket.clear(); 
 	delete outgoingDataPacket; 
 }
+
+/**
+ * @brief Process a received bus packet.
+ *
+ * @param packet Transaction packet received from the memory controller bus.
+ */
 void Rank::receiveFromBus(BusPacket *packet)
 {
+    // Get bank ID for packet
+    unsigned bank = packet->bank;
+    
 	if (DEBUG_BUS)
 	{
 		PRINTN(" -- R" << this->id << " Receiving On Bus    : ");
 		packet->print();
 	}
+
 	if (VERIFICATION_OUTPUT)
 	{
 		packet->print(currentClockCycle,false);
@@ -94,25 +101,43 @@ void Rank::receiveFromBus(BusPacket *packet)
 	switch (packet->busPacketType)
 	{
 	case READ:
-		//make sure a read is allowed
-		if (bankStates[packet->bank].currentBankState != RowActive ||
-		        currentClockCycle < bankStates[packet->bank].nextRead ||
-		        packet->row != bankStates[packet->bank].openRowAddress)
+
+		/* Make sure a read is allowed:
+         * 1. The bank doesn't already have an active row. Any active rows
+         *    have to closed (precharged) before issuing another read request
+         *    to the same bank.
+         * 2. Row read delay has expired.
+         * 3. Read from a row which is not ACTIVATE'ed i.e. we didn't receive
+         *    an ACTIVATE command preceding this READ.
+         */
+		if (bankStates[bank].currentBankState != RowActive ||
+            currentClockCycle < bankStates[bank].nextRead ||
+            packet->row != bankStates[bank].openRowAddress)
 		{
 			packet->print();
 			ERROR("== Error - Rank " << id << " received a READ when not allowed");
 			exit(0);
 		}
 
-		//update state table
-		bankStates[packet->bank].nextPrecharge = max(bankStates[packet->bank].nextPrecharge, currentClockCycle + READ_TO_PRE_DELAY);
-		for (size_t i=0;i<NUM_BANKS;i++)
-		{
-			bankStates[i].nextRead = max(bankStates[i].nextRead, currentClockCycle + max(tCCD, BL/2));
-			bankStates[i].nextWrite = max(bankStates[i].nextWrite, currentClockCycle + READ_TO_WRITE_DELAY);
-		}
+		// Update state (timings) table for the bank receiving the packet.
+        for (size_t i = 0; i < NUM_BANKS; i++)
+        {
+            bankStates[i].nextRead = \
+                                  max(bankStates[i].nextRead,
+                                      currentClockCycle + max(tCCD, BL/2));
 
-		//get the read data and put it in the storage which delays until the appropriate time (RL)
+            bankStates[i].nextWrite = \
+                                  max(bankStates[i].nextWrite,
+                                      currentClockCycle + READ_TO_WRITE_DELAY);
+        }
+
+        bankStates[packet->bank].nextPrecharge = \
+                                 max(bankStates[bank].nextPrecharge,
+                                     currentClockCycle + READ_TO_PRE_DELAY);
+		
+		/* Get the read data and put it in the storage which delays until the
+         * appropriate time (RL).
+         */
 #ifndef NO_STORAGE
 		banks[packet->bank].read(packet);
 #else
@@ -121,11 +146,13 @@ void Rank::receiveFromBus(BusPacket *packet)
 		readReturnPacket.push_back(packet);
 		readReturnCountdown.push_back(RL);
 		break;
+
 	case READ_P:
-		//make sure a read is allowed
+
+		// Make sure a read is allowed
 		if (bankStates[packet->bank].currentBankState != RowActive ||
-		        currentClockCycle < bankStates[packet->bank].nextRead ||
-		        packet->row != bankStates[packet->bank].openRowAddress)
+            currentClockCycle < bankStates[packet->bank].nextRead ||
+            packet->row != bankStates[packet->bank].openRowAddress)
 		{
 			ERROR("== Error - Rank " << id << " received a READ_P when not allowed");
 			exit(-1);
@@ -136,12 +163,14 @@ void Rank::receiveFromBus(BusPacket *packet)
 		bankStates[packet->bank].nextActivate = max(bankStates[packet->bank].nextActivate, currentClockCycle + READ_AUTOPRE_DELAY);
 		for (size_t i=0;i<NUM_BANKS;i++)
 		{
-			//will set next read/write for all banks - including current (which shouldnt matter since its now idle)
+			// Will set next read/write for all banks - including current (which shouldnt matter since its now idle)
 			bankStates[i].nextRead = max(bankStates[i].nextRead, currentClockCycle + max(BL/2, tCCD));
 			bankStates[i].nextWrite = max(bankStates[i].nextWrite, currentClockCycle + READ_TO_WRITE_DELAY);
 		}
 
-		//get the read data and put it in the storage which delays until the appropriate time (RL)
+		// Get the read data and put it in the storage which delays until the
+        // appropriate time (RL)
+
 #ifndef NO_STORAGE
 		banks[packet->bank].read(packet);
 #else
@@ -151,6 +180,7 @@ void Rank::receiveFromBus(BusPacket *packet)
 		readReturnPacket.push_back(packet);
 		readReturnCountdown.push_back(RL);
 		break;
+
 	case WRITE:
 		//make sure a write is allowed
 		if (bankStates[packet->bank].currentBankState != RowActive ||
@@ -202,9 +232,10 @@ void Rank::receiveFromBus(BusPacket *packet)
 		delete(packet);
 		break;
 	case ACTIVATE:
+
 		//make sure activate is allowed
 		if (bankStates[packet->bank].currentBankState != Idle ||
-		        currentClockCycle < bankStates[packet->bank].nextActivate)
+            currentClockCycle < bankStates[packet->bank].nextActivate)
 		{
 			ERROR("== Error - Rank " << id << " received an ACT when not allowed");
 			packet->print();
@@ -264,19 +295,20 @@ void Rank::receiveFromBus(BusPacket *packet)
 		}
 		delete(packet); 
 		break;
+
 	case DATA:
 		// TODO: replace this check with something that works?
-		/*
-		if(packet->bank != incomingWriteBank ||
-			 packet->row != incomingWriteRow ||
-			 packet->column != incomingWriteColumn)
-			{
-				cout << "== Error - Rank " << id << " received a DATA packet to the wrong place" << endl;
-				packet->print();
-				bankStates[packet->bank].print();
-				exit(0);
-			}
-		*/
+        /*
+           if (packet->bank != incomingWriteBank ||
+               packet->row != incomingWriteRow ||
+               packet->column != incomingWriteColumn)
+           {
+               cout << "== Error - Rank " << id << " received a DATA packet to the wrong place" << endl;
+               packet->print();
+               bankStates[packet->bank].print();
+               exit(0);
+           }
+       */
 #ifndef NO_STORAGE
 		banks[packet->bank].write(packet);
 #else
@@ -284,6 +316,7 @@ void Rank::receiveFromBus(BusPacket *packet)
 #endif
 		delete(packet);
 		break;
+
 	default:
 		ERROR("== Error - Unknown BusPacketType trying to be sent to Bank");
 		exit(0);
@@ -298,7 +331,6 @@ int Rank::getId() const
 
 void Rank::update()
 {
-
 	// An outgoing packet is one that is currently sending on the bus
 	// do the book keeping for the packet's time left on the bus
 	if (outgoingDataPacket != NULL)
@@ -318,8 +350,7 @@ void Rank::update()
 		readReturnCountdown[i]--;
 	}
 
-
-	if (readReturnCountdown.size() > 0 && readReturnCountdown[0]==0)
+	if (readReturnCountdown.size() > 0 && readReturnCountdown[0] == 0)
 	{
 		// RL time has passed since the read was issued; this packet is
 		// ready to go out on the bus
@@ -337,7 +368,6 @@ void Rank::update()
 			outgoingDataPacket->print();
 			PRINT("");
 		}
-
 	}
 }
 

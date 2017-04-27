@@ -28,23 +28,29 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************************/
 
-
-
-
-
-
-
-
-//BusPacket.cpp
 //
-//Class file for bus packet object
+// BusPacket.cpp
+// Class file for bus packet object
 //
 
 #include "BusPacket.h"
+#include <assert.h>
 
 using namespace DRAMSim;
 using namespace std;
 
+/**
+ * @brief 
+ *
+ * @param packtype
+ * @param physicalAddr
+ * @param col
+ * @param rw
+ * @param r
+ * @param b
+ * @param dat
+ * @param dramsim_log_
+ */
 BusPacket::BusPacket(BusPacketType packtype, uint64_t physicalAddr, 
 		unsigned col, unsigned rw, unsigned r, unsigned b, void *dat, 
 		ostream &dramsim_log_) :
@@ -60,12 +66,9 @@ BusPacket::BusPacket(BusPacketType packtype, uint64_t physicalAddr,
 
 void BusPacket::print(uint64_t currentClockCycle, bool dataStart)
 {
-	if (this == NULL)
-	{
-		return;
-	}
+    assert(this != NULL);
 
-	if (VERIFICATION_OUTPUT)
+    if (VERIFICATION_OUTPUT)
 	{
 		switch (busPacketType)
 		{
@@ -99,47 +102,54 @@ void BusPacket::print(uint64_t currentClockCycle, bool dataStart)
 		}
 	}
 }
+
 void BusPacket::print()
 {
-	if (this == NULL) //pointer use makes this a necessary precaution
-	{
-		return;
-	}
-	else
-	{
-		switch (busPacketType)
-		{
-		case READ:
-			PRINT("BP [READ] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"]");
-			break;
-		case READ_P:
-			PRINT("BP [READ_P] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"]");
-			break;
-		case WRITE:
-			PRINT("BP [WRITE] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"]");
-			break;
-		case WRITE_P:
-			PRINT("BP [WRITE_P] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"]");
-			break;
-		case ACTIVATE:
-			PRINT("BP [ACT] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"]");
-			break;
-		case PRECHARGE:
-			PRINT("BP [PRE] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"]");
-			break;
-		case REFRESH:
-			PRINT("BP [REF] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"]");
-			break;
-		case DATA:
-			PRINTN("BP [DATA] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"] data["<<data<<"]=");
-			printData();
-			PRINT("");
-			break;
-		default:
-			ERROR("Trying to print unknown kind of bus packet");
-			exit(-1);
-		}
-	}
+    assert(this != NULL);
+    char msg[1024];
+    const char fmt[] ="\"BP [%s] pa[0x\"<<hex<<physicalAddress<<dec<<\"] r[\"<<rank<<\"] b[\"<<bank<<\"] row[\"<<row<<\"] col[\"<<column<<\"]\""; 
+
+    switch (busPacketType)
+    {
+        case READ:
+            std::sprintf(msg, fmt, "READ");
+            PRINT(msg);
+            cout << msg;
+            break;
+        case READ_P:
+            std::sprintf(msg, fmt, "READ_P");
+            PRINT(msg);
+            cout << msg;
+            break;
+        case WRITE:
+            std::sprintf(msg, fmt, "WRITE");
+            PRINT(msg);
+            break;
+        case WRITE_P:
+            std::sprintf(msg, fmt, "WRITE_P");
+            PRINT(msg);
+            break;
+        case ACTIVATE:
+            std::sprintf(msg, fmt, "ACT");
+            PRINT(msg);
+            break;
+        case PRECHARGE:
+            std::sprintf(msg, fmt, "PRE");
+            PRINT(msg);
+            break;
+        case REFRESH:
+            std::sprintf(msg, fmt, "REF");
+            PRINT(msg);
+            break;
+        case DATA:
+            PRINTN("BP [DATA] pa[0x"<<hex<<physicalAddress<<dec<<"] r["<<rank<<"] b["<<bank<<"] row["<<row<<"] col["<<column<<"] data["<<data<<"]=");
+            printData();
+            PRINT("");
+            break;
+        default:
+            ERROR("Trying to print unknown kind of bus packet");
+            exit(-1);
+    }
 }
 
 void BusPacket::printData() const 

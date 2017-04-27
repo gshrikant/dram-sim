@@ -28,15 +28,14 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************************/
 
+/**
+ * @file MemorySystem.h
+ * @brief 
+ */
 
 
 #ifndef MEMORYSYSTEM_H
 #define MEMORYSYSTEM_H
-
-//MemorySystem.h
-//
-//Header file for JEDEC memory system wrapper
-//
 
 #include "SimulatorObject.h"
 #include "SystemConfiguration.h"
@@ -49,41 +48,45 @@
 
 namespace DRAMSim
 {
-typedef CallbackBase<void,unsigned,uint64_t,uint64_t> Callback_t;
-class MemorySystem : public SimulatorObject
-{
-	ostream &dramsim_log;
-public:
-	//functions
-	MemorySystem(unsigned id, unsigned megsOfMemory, CSVWriter &csvOut_, ostream &dramsim_log_);
-	virtual ~MemorySystem();
-	void update();
-	bool addTransaction(Transaction *trans);
-	bool addTransaction(bool isWrite, uint64_t addr);
-	void printStats(bool finalStats);
-	bool WillAcceptTransaction();
-	void RegisterCallbacks(
-	    Callback_t *readDone,
-	    Callback_t *writeDone,
-	    void (*reportPower)(double bgpower, double burstpower, double refreshpower, double actprepower));
+    typedef CallbackBase <void, unsigned, uint64_t, uint64_t> Callback_t;
 
-	//fields
-	MemoryController *memoryController;
-	vector<Rank *> *ranks;
-	deque<Transaction *> pendingTransactions; 
+    class MemorySystem : public SimulatorObject
+    {
+        ostream &dramsim_log;
+
+    public:
+
+        // Methods
+        MemorySystem(unsigned id, unsigned megsOfMemory,
+                     CSVWriter &csvOut_, ostream &dramsim_log_);
+        virtual ~MemorySystem();
+        void update();
+        bool addTransaction(Transaction *trans);
+        bool addTransaction(bool isWrite, uint64_t addr);
+        void printStats(bool finalStats);
+        bool WillAcceptTransaction();
+        void RegisterCallbacks(Callback_t *readDone, Callback_t *writeDone,
+                               void (*reportPower)(double bgpower,
+                                                   double burstpower,
+                                                   double refreshpower,
+                                                   double actprepower));
+
+        // Fields
+        MemoryController *memoryController;
+        vector<Rank *> *ranks;
+        deque<Transaction *> pendingTransactions; 
 
 
-	//function pointers
-	Callback_t* ReturnReadData;
-	Callback_t* WriteDataDone;
-	//TODO: make this a functor as well?
-	static powerCallBack_t ReportPower;
-	unsigned systemID;
+        // Function pointers
+        Callback_t* ReturnReadData;
+        Callback_t* WriteDataDone;
 
-private:
-	CSVWriter &csvOut;
-};
+        // TODO: make this a functor as well?
+        static powerCallBack_t ReportPower;
+        unsigned systemID;
+
+    private:
+        CSVWriter &csvOut;
+    };
 }
-
 #endif
-

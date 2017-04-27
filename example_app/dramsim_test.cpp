@@ -55,17 +55,15 @@ void power_callback(double a, double b, double c, double d)
 
 int some_object::add_one_and_run(MultiChannelMemorySystem *mem, uint64_t addr)
 {
-
-	/* create a transaction and add it */
+	/* Create a transaction and add it */
 	bool isWrite = false; 
 	mem->addTransaction(isWrite, addr);
 
-	// send a read to channel 1 on the same cycle 
-	addr = 1LL<<33 | addr; 
+	/* send a read to channel 1 on the same cycle */
+	addr = 1LL << 33 | addr; 
 	mem->addTransaction(isWrite, addr);
 
-	for (int i=0; i<5; i++)
-	{
+	for (int i=0; i<5; i++) {
 		mem->update();
 	}
 
@@ -78,8 +76,7 @@ int some_object::add_one_and_run(MultiChannelMemorySystem *mem, uint64_t addr)
 	
 
 	/* do a bunch of updates (i.e. clocks) -- at some point the callback will fire */
-	for (int i=0; i<45; i++)
-	{
+	for (int i = 0; i < 45; i++) {
 		mem->update();
 	}
 
@@ -97,11 +94,9 @@ int main()
 
 	/* pick a DRAM part to simulate */
 	MultiChannelMemorySystem *mem = getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini", "..", "example_app", 16384); 
-
-
 	mem->RegisterCallbacks(read_cb, write_cb, power_callback);
-	MultiChannelMemorySystem *mem2 = getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini", "..", "example_app", 16384); 
 
+	MultiChannelMemorySystem *mem2 = getMemorySystemInstance("ini/DDR2_micron_16M_8b_x8_sg3E.ini", "system.ini", "..", "example_app", 16384); 
 	mem2->RegisterCallbacks(read_cb, write_cb, power_callback);
 
 	printf("dramsim_test main()\n");
@@ -113,4 +108,3 @@ int main()
 	obj.add_one_and_run(mem2, 0x300002UL);
 	return 0; 
 }
-

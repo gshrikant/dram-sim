@@ -1,7 +1,6 @@
 CXXFLAGS=-DNO_STORAGE -Wall -DDEBUG_BUILD 
 OPTFLAGS=-O3 
 
-
 ifdef DEBUG
 ifeq ($(DEBUG), 1)
 OPTFLAGS= -O0 -g

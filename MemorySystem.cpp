@@ -65,20 +65,20 @@ MemorySystem::MemorySystem(unsigned id, unsigned int megsOfMemory, CSVWriter &cs
 	DEBUG("===== MemorySystem "<<systemID<<" =====");
 
 
-	//calculate the total storage based on the devices the user selected and the number of
+	// Calculate the total storage based on the devices the user selected and 
+    // the number of devices.
 
-	//calculate number of devices
 	/************************
-	  This code has always been problematic even though it's pretty simple. I'll try to explain it 
-	  for my own sanity. 
+      This code has always been problematic even though it's pretty simple.
+      I'll try to explain it for my own sanity. 
 
-	  There are two main variables here that we could let the user choose:
-	  NUM_RANKS or TOTAL_STORAGE.  Since the density and width of the part is
-	  fixed by the device ini file, the only variable that is really
-	  controllable is the number of ranks. Users care more about choosing the
-	  total amount of storage, but with a fixed device they might choose a total
-	  storage that isn't possible. In that sense it's not as good to allow them
-	  to choose TOTAL_STORAGE (because any NUM_RANKS value >1 will be valid).
+      There are two main variables here that we could let the user choose:
+      NUM_RANKS or TOTAL_STORAGE.  Since the density and width of the part is
+      fixed by the device ini file, the only variable that is really
+      controllable is the number of ranks. Users care more about choosing the
+      total amount of storage, but with a fixed device they might choose a total
+      storage that isn't possible. In that sense it's not as good to allow them
+      to choose TOTAL_STORAGE (because any NUM_RANKS value >1 will be valid).
 
 	  However, users don't care (or know) about ranks, they care about total
 	  storage, so maybe it's better to let them choose and just throw an error
@@ -86,27 +86,38 @@ MemorySystem::MemorySystem(unsigned id, unsigned int megsOfMemory, CSVWriter &cs
 
 	  A bit of background: 
 
-	  Each column contains DEVICE_WIDTH bits. A row contains NUM_COLS columns.
-	  Each bank contains NUM_ROWS rows. Therefore, the total storage per DRAM device is: 
-	  		PER_DEVICE_STORAGE = NUM_ROWS*NUM_COLS*DEVICE_WIDTH*NUM_BANKS (in bits)
+      Each column contains DEVICE_WIDTH bits. A row contains NUM_COLS columns.
+      Each bank contains NUM_ROWS rows. Therefore, the total storage per DRAM
+      device (in bits) is: 
 
-	 A rank *must* have a 64 bit output bus (JEDEC standard), so each rank must have:
-	  		NUM_DEVICES_PER_RANK = 64/DEVICE_WIDTH  
-			(note: if you have multiple channels ganged together, the bus width is 
-			effectively NUM_CHANS * 64/DEVICE_WIDTH)
-	 
-	If we multiply these two numbers to get the storage per rank (in bits), we get:
-			PER_RANK_STORAGE = PER_DEVICE_STORAGE*NUM_DEVICES_PER_RANK = NUM_ROWS*NUM_COLS*NUM_BANKS*64 
+        PER_DEVICE_STORAGE = NUM_ROWS*NUM_COLS*DEVICE_WIDTH*NUM_BANKS
 
-	Finally, to get TOTAL_STORAGE, we need to multiply by NUM_RANKS
-			TOTAL_STORAGE = PER_RANK_STORAGE*NUM_RANKS (total storage in bits)
+      A rank *must* have a 64 bit output bus (JEDEC standard), so each rank
+      must have:
 
-	So one could compute this in reverse -- compute NUM_DEVICES,
-	PER_DEVICE_STORAGE, and PER_RANK_STORAGE first since all these parameters
-	are set by the device ini. Then, TOTAL_STORAGE/PER_RANK_STORAGE = NUM_RANKS 
+          NUM_DEVICES_PER_RANK = 64/DEVICE_WIDTH  
 
-	The only way this could run into problems is if TOTAL_STORAGE < PER_RANK_STORAGE,
-	which could happen for very dense parts.
+      (note: if you have multiple channels ganged together, the bus width is 
+      effectively NUM_CHANS * 64/DEVICE_WIDTH). If we multiply these two numbers
+      to get the storage per rank (in bits), we get:
+
+      PER_RANK_STORAGE = PER_DEVICE_STORAGE*NUM_DEVICES_PER_RANK
+                       = NUM_ROWS*NUM_COLS*NUM_BANKS*64 
+
+      Finally, to get TOTAL_STORAGE, we need to multiply by NUM_RANKS
+      TOTAL_STORAGE = PER_RANK_STORAGE*NUM_RANKS (total storage in bits)
+
+      So one could compute this in reverse -- compute NUM_DEVICES,
+      PER_DEVICE_STORAGE, and PER_RANK_STORAGE first since all these parameters
+      are set by the device ini. Then,
+        
+            TOTAL_STORAGE/PER_RANK_STORAGE = NUM_RANKS 
+
+      The only way this could run into problems is if
+
+              TOTAL_STORAGE < PER_RANK_STORAGE,
+
+      which could happen for very dense parts.
 	*********************/
 
 	// number of bytes per rank
@@ -238,9 +249,12 @@ void MemorySystem::update()
 	//PRINT("\n"); // two new lines
 }
 
-void MemorySystem::RegisterCallbacks( Callback_t* readCB, Callback_t* writeCB,
-                                      void (*reportPower)(double bgpower, double burstpower,
-                                                          double refreshpower, double actprepower))
+void MemorySystem::RegisterCallbacks(Callback_t* readCB,
+                                     Callback_t* writeCB,
+                                     void (*reportPower)(double bgpower,
+                                                         double burstpower,
+                                                         double refreshpower,
+                                                         double actprepower))
 {
 	ReturnReadData = readCB;
 	WriteDataDone = writeCB;
@@ -251,9 +265,8 @@ void MemorySystem::RegisterCallbacks( Callback_t* readCB, Callback_t* writeCB,
 
 
 
-// This function can be used by autoconf AC_CHECK_LIB since
-// apparently it can't detect C++ functions.
-// Basically just an entry in the symbol table
+// This function can be used by autoconf AC_CHECK_LIB since apparently it can't
+// detect C++ functions. Basically just an entry in the symbol table
 extern "C"
 {
 	void libdramsim_is_present(void)
@@ -261,4 +274,3 @@ extern "C"
 		;
 	}
 }
-

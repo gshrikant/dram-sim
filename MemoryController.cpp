@@ -28,12 +28,10 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************************/
 
-
-
-//MemoryController.cpp
-//
-//Class file for memory controller object
-//
+/**
+ * @file MemoryController.cpp
+ * @brief Class file for the MemoryController object.
+ */
 
 #include "MemoryController.h"
 #include "MemorySystem.h"
@@ -60,7 +58,9 @@ extern float Vdd;
 
 using namespace DRAMSim;
 
-MemoryController::MemoryController(MemorySystem *parent, CSVWriter &csvOut_, ostream &dramsim_log_) :
+MemoryController::MemoryController(MemorySystem *parent,
+                                   CSVWriter &csvOut_,
+                                   ostream &dramsim_log_) :
 		dramsim_log(dramsim_log_),
 		bankStates(NUM_RANKS, vector<BankState>(NUM_BANKS, dramsim_log)),
 		commandQueue(bankStates, dramsim_log_),
@@ -69,17 +69,17 @@ MemoryController::MemoryController(MemorySystem *parent, CSVWriter &csvOut_, ost
 		totalTransactions(0),
 		refreshRank(0)
 {
-	//get handle on parent
+	// Get handle on parent
 	parentMemorySystem = parent;
 
 
-	//bus related fields
+	// Bus related fields
 	outgoingCmdPacket = NULL;
 	outgoingDataPacket = NULL;
 	dataCyclesLeft = 0;
 	cmdCyclesLeft = 0;
 
-	//set here to avoid compile errors
+	// Set here to avoid compile errors
 	currentClockCycle = 0;
 
 	//reserve memory for vectors
@@ -851,12 +851,17 @@ void MemoryController::printStats(bool finalStats)
 	double totalAggregateBandwidth = 0.0;	
 	for (size_t r=0;r<NUM_RANKS;r++)
 	{
-
 		PRINT( "      -Rank   "<<r<<" : ");
 		PRINTN( "        -Reads  : " << totalReadsPerRank[r]);
 		PRINT( " ("<<totalReadsPerRank[r] * bytesPerTransaction<<" bytes)");
 		PRINTN( "        -Writes : " << totalWritesPerRank[r]);
 		PRINT( " ("<<totalWritesPerRank[r] * bytesPerTransaction<<" bytes)");
+
+
+        if (totalReadsPerRank[r] > 32000) {
+            cout << "Attack detected!";
+        }
+
 		for (size_t j=0;j<NUM_BANKS;j++)
 		{
 			PRINT( "        -Bandwidth / Latency  (Bank " <<j<<"): " <<bandwidth[SEQUENTIAL(r,j)] << " GB/s\t\t" <<averageLatency[SEQUENTIAL(r,j)] << " ns");

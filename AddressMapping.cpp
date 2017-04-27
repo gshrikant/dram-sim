@@ -27,6 +27,35 @@
 *  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************************/
+
+
+//
+// Reference Intel Sandy Bridge Address Mapping.
+// NOTE: Last-level cache line size is assumed to be 64 bytes.
+//
+//    Bits 0-5: These are the lower 6 bits of the byte index within a row (i.e.
+//    the 6-bit index into a 64-byte cache line).
+//
+//    Bit 6: This is a 1-bit channel number, which selects between the 2 DIMMs.
+//
+//    Bits 7-13: These are the upper 7 bits of the index within a row (i.e. the
+//    upper bits of the column number).
+//
+//    Bits 14-16: These are XOR'd with the bottom 3 bits of the row number to
+//    give the 3-bit bank number.
+//
+//    Bit 17: This is a 1-bit rank number, which selects between the 2 ranks
+//    of a DIMM (which are typically the two sides of the DIMM's circuit
+//    board).
+//
+//    Bits 18-32: These are the 15-bit row number.
+//
+//    Bits 33+: These may be set because physical memory starts at physical
+//    addresses greater than 0. 
+//
+//  TLDR: Row:Rank:Bank:Col:Channel
+//
+
 #include "SystemConfiguration.h"
 #include "AddressMapping.h"
 
@@ -36,28 +65,46 @@ namespace DRAMSim
 void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsigned &newTransactionRank, unsigned &newTransactionBank, unsigned &newTransactionRow, unsigned &newTransactionColumn)
 {
 	uint64_t tempA, tempB;
+
+    // Transaction size = Bus width * Burst length.
 	unsigned transactionSize = TRANSACTION_SIZE;
-	uint64_t transactionMask =  transactionSize - 1; //ex: (64 bit bus width) x (8 Burst Length) - 1 = 64 bytes - 1 = 63 = 0x3f mask
+
+    // 64 bit bus width x (8 Burst Length) - 1 = 64 bytes - 1 = 63 = 0x3f mask
+	uint64_t transactionMask =  transactionSize - 1;
+
+    // Bits needed to represent channels.
 	unsigned channelBitWidth = NUM_CHANS_LOG;
+
+    // Bits needed to represent ranks.
 	unsigned rankBitWidth = NUM_RANKS_LOG;
+
+    // Bits needed to represent banks.
 	unsigned bankBitWidth = NUM_BANKS_LOG;
+
+    // Number of bits needed for representing rows (from datasheet).
 	unsigned rowBitWidth = NUM_ROWS_LOG;
 	unsigned colBitWidth = NUM_COLS_LOG;
-	// this forces the alignment to the width of a single burst (64 bits = 8 bytes = 3 address bits for DDR parts)
-	unsigned byteOffsetWidth = BYTE_OFFSET_WIDTH;
-	// Since we're assuming that a request is for BL*BUS_WIDTH, the bottom bits
-	// of this address *should* be all zeros if it's not, issue a warning
 
+	// This forces the alignment to the width of a single burst
+    // 64 bits = 8 bytes = 3 address bits for DDR parts.
+	unsigned byteOffsetWidth = BYTE_OFFSET_WIDTH;
+
+	/* Since we're assuming that a request is for BL*BUS_WIDTH, the bottom bits
+     * of this address *should* be all zeros if it's not, issue a warning.
+     */
 	if ((physicalAddress & transactionMask) != 0)
 	{
-		DEBUG("WARNING: address 0x"<<std::hex<<physicalAddress<<std::dec<<" is not aligned to the request size of "<<transactionSize); 
+		DEBUG("WARNING: address 0x" << std::hex << physicalAddress 
+               << std::dec << " is not aligned to the request size of "
+               << transactionSize); 
 	}
 
-	// each burst will contain JEDEC_DATA_BUS_BITS/8 bytes of data, so the bottom bits (3 bits for a single channel DDR system) are
-	// 	thrown away before mapping the other bits
+	// Each burst will contain JEDEC_DATA_BUS_BITS/8 bytes of data, so the
+    // bottom bits (3 bits for a single channel DDR system) are thrown away
+    // before mapping the other bits.
 	physicalAddress >>= byteOffsetWidth;
 
-	// The next thing we have to consider is that when a request is made for a
+	// The next thing we have to consider is that when a request is made for an
 	// we've taken into account the granulaity of a single burst by shifting 
 	// off the bottom 3 bits, but a transaction has to take into account the
 	// burst length (i.e. the requests will be aligned to cache line sizes which
@@ -70,14 +117,17 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 	//
 	// I am having a hard time explaining the reasoning here, but it comes down
 	// this: for a 64 byte transaction, the bottom 6 bits of the address must be 
-	// zero. These zero bits must be made up of the byte offset (3 bits) and also
-	// from the bottom bits of the column 
+	// zero. These zero bits must be made up of the byte offset (3 bits) and
+    // also from the bottom bits of the column.
 	// 
 	// For example: cowLowBits = log2(64bytes) - 3 bits = 3 bits 
+
 	unsigned colLowBitWidth = COL_LOW_BIT_WIDTH;
 
 	physicalAddress >>= colLowBitWidth;
+
 	unsigned colHighBitWidth = colBitWidth - colLowBitWidth; 
+
 	if (DEBUG_ADDR_MAP)
 	{
 		DEBUG("Bit widths: ch:"<<channelBitWidth<<" r:"<<rankBitWidth<<" b:"<<bankBitWidth
@@ -86,10 +136,10 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 				<< " Total:"<< (channelBitWidth + rankBitWidth + bankBitWidth + rowBitWidth + colLowBitWidth + colHighBitWidth + byteOffsetWidth));
 	}
 
-	//perform various address mapping schemes
+	// Apply various address mapping schemes
 	if (addressMappingScheme == Scheme1)
 	{
-		//chan:rank:row:col:bank
+		// chan:rank:row:col:bank
 		tempA = physicalAddress;
 		physicalAddress = physicalAddress >> bankBitWidth;
 		tempB = physicalAddress << bankBitWidth;
@@ -109,6 +159,7 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 		physicalAddress = physicalAddress >> rankBitWidth;
 		tempB = physicalAddress << rankBitWidth;
 		newTransactionRank = tempA ^ tempB;
+
 
 		tempA = physicalAddress;
 		physicalAddress = physicalAddress >> channelBitWidth;
@@ -118,7 +169,7 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 	}
 	else if (addressMappingScheme == Scheme2)
 	{
-		//chan:row:col:bank:rank
+		// chan:row:col:bank:rank
 		tempA = physicalAddress;
 		physicalAddress = physicalAddress >> rankBitWidth;
 		tempB = physicalAddress << rankBitWidth;
@@ -143,7 +194,6 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 		physicalAddress = physicalAddress >> channelBitWidth;
 		tempB = physicalAddress << channelBitWidth;
 		newTransactionChan = tempA ^ tempB;
-
 	}
 	else if (addressMappingScheme == Scheme3)
 	{
@@ -172,7 +222,6 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 		physicalAddress = physicalAddress >> channelBitWidth;
 		tempB = physicalAddress << channelBitWidth;
 		newTransactionChan = tempA ^ tempB;
-
 	}
 	else if (addressMappingScheme == Scheme4)
 	{
@@ -201,7 +250,6 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 		physicalAddress = physicalAddress >> channelBitWidth;
 		tempB = physicalAddress << channelBitWidth;
 		newTransactionChan = tempA ^ tempB;
-
 	}
 	else if (addressMappingScheme == Scheme5)
 	{
@@ -231,8 +279,6 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 		physicalAddress = physicalAddress >> channelBitWidth;
 		tempB = physicalAddress << channelBitWidth;
 		newTransactionChan = tempA ^ tempB;
-
-
 	}
 	else if (addressMappingScheme == Scheme6)
 	{
@@ -262,12 +308,11 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 		physicalAddress = physicalAddress >> channelBitWidth;
 		tempB = physicalAddress << channelBitWidth;
 		newTransactionChan = tempA ^ tempB;
-
-
 	}
 	// clone of scheme 5, but channel moved to lower bits
 	else if (addressMappingScheme == Scheme7)
 	{
+        // TLDR: Row:Rank:Bank:Col:Chan
 		//row:col:rank:bank:chan
 		tempA = physicalAddress;
 		physicalAddress = physicalAddress >> channelBitWidth;
@@ -293,14 +338,46 @@ void addressMapping(uint64_t physicalAddress, unsigned &newTransactionChan, unsi
 		physicalAddress = physicalAddress >> rowBitWidth;
 		tempB = physicalAddress << rowBitWidth;
 		newTransactionRow = tempA ^ tempB;
-
 	}
+	else if (addressMappingScheme == Scheme8)
+	{
+        // Row:Rank:Bank:Col:Chan
+		tempA = physicalAddress;
+		physicalAddress = physicalAddress >> channelBitWidth;
+		tempB = physicalAddress << channelBitWidth;
+		newTransactionChan = tempA ^ tempB;
 
+		tempA = physicalAddress;
+		physicalAddress = physicalAddress >> colHighBitWidth;
+		tempB = physicalAddress << colHighBitWidth;
+		newTransactionColumn = tempA ^ tempB;
+
+		tempA = physicalAddress;
+		physicalAddress = physicalAddress >> bankBitWidth;
+		tempB = physicalAddress << bankBitWidth;
+		newTransactionBank = tempA ^ tempB;
+
+		tempA = physicalAddress;
+		physicalAddress = physicalAddress >> rankBitWidth;
+		tempB = physicalAddress << rankBitWidth;
+		newTransactionRank = tempA ^ tempB;
+
+		tempA = physicalAddress;
+		physicalAddress = physicalAddress >> rowBitWidth;
+		tempB = physicalAddress << rowBitWidth;
+		newTransactionRow = tempA ^ tempB;
+	
+        unsigned bank_mask = (1 << bankBitWidth) - 1;
+
+        // XORed to minimize bank collisions 
+        newTransactionBank = (newTransactionBank ^ newTransactionRow) & bank_mask;
+    }
 	else
 	{
 		ERROR("== Error - Unknown Address Mapping Scheme");
 		exit(-1);
 	}
+
 	if (DEBUG_ADDR_MAP)
 	{
 		DEBUG("Mapped Ch="<<newTransactionChan<<" Rank="<<newTransactionRank

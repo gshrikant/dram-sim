@@ -176,8 +176,7 @@ void *parseTraceFileLine(string &line, uint64_t &addr, enum TransactionType &tra
 		spaceIndex = line.find_first_not_of(" ", previousIndex);
 		ccStr = line.substr(spaceIndex, line.find_first_of(" ", spaceIndex) - spaceIndex);
 
-		if (cmdStr.compare("P_MEM_WR")==0 ||
-		        cmdStr.compare("BOFF")==0)
+		if (cmdStr.compare("P_MEM_WR")==0 || cmdStr.compare("BOFF")==0)
 		{
 			transType = DATA_WRITE;
 		}
@@ -312,7 +311,7 @@ void *parseTraceFileLine(string &line, uint64_t &addr, enum TransactionType &tra
 				iss >> hex >> dataBuffer[i];
 			}
 			PRINTN("\tDATA=");
-			BusPacket::printData(dataBuffer);
+		//	BusPacket::printData((uint64_t) dataBuffer);
 		}
 
 		PRINT("");
@@ -427,6 +426,7 @@ int main(int argc, char **argv)
 			break;
 		case 't':
 			traceFileName = string(optarg);
+            cout << traceFileName << endl;
 			break;
 		case 's':
 			systemIniFilename = string(optarg);
@@ -481,7 +481,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		ERROR("== Unknown Tracefile Type : "<<temp);
+		ERROR("== Unknown Tracefile Type : "<< temp);
 		exit(0);
 	}
 

@@ -45,42 +45,44 @@ using namespace DRAMSim;
 
 namespace DRAMSim
 {
-class MemoryController; //forward declaration
-class Rank : public SimulatorObject
-{
-private:
-	int id;
-	ostream &dramsim_log; 
-	unsigned incomingWriteBank;
-	unsigned incomingWriteRow;
-	unsigned incomingWriteColumn;
-	bool isPowerDown;
+    // Forward declaration
+    class MemoryController;
 
-public:
-	//functions
-	Rank(ostream &dramsim_log_);
-	virtual ~Rank(); 
-	void receiveFromBus(BusPacket *packet);
-	void attachMemoryController(MemoryController *mc);
-	int getId() const;
-	void setId(int id);
-	void update();
-	void powerUp();
-	void powerDown();
+    class Rank : public SimulatorObject
+    {
+        private:
+                int id;
+                unsigned long long rowhammer;
+                ostream &dramsim_log; 
+                unsigned incomingWriteBank;
+                unsigned incomingWriteRow;
+                unsigned incomingWriteColumn;
+                bool isPowerDown;
 
-	//fields
-	MemoryController *memoryController;
-	BusPacket *outgoingDataPacket;
-	unsigned dataCyclesLeft;
-	bool refreshWaiting;
+        public:
+                // Methods
+                Rank(ostream &dramsim_log_);
+                virtual ~Rank(); 
+                void receiveFromBus(BusPacket *packet);
+                void attachMemoryController(MemoryController *mc);
+                int getId() const;
+                void setId(int id);
+                void update();
+                void powerUp();
+                void powerDown();
 
-	//these are vectors so that each element is per-bank
-	vector<BusPacket *> readReturnPacket;
-	vector<unsigned> readReturnCountdown;
-	vector<Bank> banks;
-	vector<BankState> bankStates;
+                // Fields
+                MemoryController *memoryController;
+                BusPacket *outgoingDataPacket;
+                unsigned dataCyclesLeft;
+                bool refreshWaiting;
 
-};
+                // These are vectors so that each element is per-bank
+                vector<BusPacket *> readReturnPacket;
+                vector<unsigned> readReturnCountdown;
+                vector<Bank> banks;
+                vector<BankState> bankStates;
+    };
 }
 #endif
 

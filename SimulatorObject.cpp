@@ -28,17 +28,11 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************************/
 
-
-
-
-
-
-
-
-//SimulatorObject.cpp
-//
-//Base class for all classes in the simulator
-//
+/**
+ * @file SimulatorObject.cpp
+ * @brief Base class for all simulator objects.
+ * @author 
+ */
 
 #include <cstdlib>
 #include "SimulatorObject.h"
@@ -50,5 +44,3 @@ void SimulatorObject::step()
 {
 	currentClockCycle++;
 }
-
-
